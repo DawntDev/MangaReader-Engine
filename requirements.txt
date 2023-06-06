@@ -1,0 +1,5 @@
+fastapi==0.95.1
+beautifulsoup4==4.12.2
+aiohttp==3.8.4
+uvicorn==0.22.0
+selenium==4.9.1
