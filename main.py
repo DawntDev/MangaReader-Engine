@@ -125,3 +125,8 @@ def search(text: str = Query(""), genres: List[str] = Query([])):
     
     query = cursor.fetchall()
     return MangaSearch(query).response
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    uvicorn.run(app)
