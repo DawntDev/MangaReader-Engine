@@ -4,7 +4,7 @@ import aiohttp
 
 
 class Nartag(Scraper):
-    __URL = "https://nartag.com/"
+    __URL = "https://nartag.com"
 
     @staticmethod
     async def get_manga_list(page: int):
@@ -58,11 +58,11 @@ class Nartag(Scraper):
             element = soup.select_one("div.summary_image img")
             output_manga["coverURL"] = element.get("src") if element else None
         if not output_manga.get("chapterList"):
-            elements = soup.select("li.wp-manga-chapter")
+            elements = soup.select("div.chapter__actions")
             output_manga["chapterList"] = [
                 el.findChild("a")
                 .get("href")
-                .split("/")[-2]
+                .split("/")[-1]
                 .split("capitulo-")[-1] 
             for el in elements]
             
@@ -71,20 +71,20 @@ class Nartag(Scraper):
     @staticmethod
     async def get_manga_chapter(name_url: str, chapter: str):
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{Nartag.__URL}/l/{name_url}/capitulo-{chapter}/") as content:
+            async with session.get(f"{Nartag.__URL}/v/{name_url}/capitulo-{chapter}/") as content:
                 if content.status != 200:
                     return False
                 soup = BeautifulSoup("".join(await content.text()), "html.parser")
         
         
-        images = soup.findAll("div", {"class": "page-break"})
+        images = soup.findAll("div", {"class": "reader__item"})
         if not images:
             text = soup.find("div", {"class": "reading-content"})
             return text.get_text()
 
         images = [
             *map(
-                lambda el: el.findChild("img").get("src").strip(),
+                lambda el: el.findChild("img").get("data-src").strip(),
                 images
             )
         ]
