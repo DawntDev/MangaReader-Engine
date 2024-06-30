@@ -1,5 +1,9 @@
-fastapi==0.95.1
-beautifulsoup4==4.12.2
-aiohttp==3.8.4
-uvicorn==0.22.0
-selenium==4.9.1
+fastapi[all]==0.111.0
+uvicorn[standard]==0.30.1
+SQLAlchemy==2.0.31
+psycopg2==2.9.9
+selenium==4.22.0
+selenium-stealth==1.0.6
+aiohttp[speedups]==0.30.1
+beautifulsoup4==4.12.3
+fake-useragent==1.5.1
