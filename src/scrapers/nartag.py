@@ -42,7 +42,7 @@ class Nartag(Scraper):
                 )
             except Exception as err:
                 logger.exception(
-                    f"NARTAG SERVER EXCEPTION IN __get_list:\nFUNCTION CALL:\n\t__get_list(\n\t\tpage:str = '{page}'\n\t\tserver_id: int = {server_id}\n\t)\nHTML ITEM: {item.prettify(encoding=None)}\nEXCEPTION:\n{err}"
+                    f"NARTAG SERVER EXCEPTION IN __get_list:\nFUNCTION CALL:\n\t__get_list(\n\t\tpage:str = '{page}'\n\t\tserver_id: int = {server_id}\n\t)\nHTML ITEM: {item.prettify(encoding=None) if item else None}\nEXCEPTION:\n{err}"
                 )
 
         return mangas
@@ -77,12 +77,13 @@ class Nartag(Scraper):
             manga.cover_url = cover_url
 
             type_of = card.select_one("div.manga__type > a").text
-            manga.type_of = (
-                type_of.lower().strip().split("\n")[-1]
-                if type_of
-                else None
-            )
-
+            manga.type_of = "manhwa"
+            if type_of:
+                if "Novela" in type_of:
+                    manga.type_of = "novel"
+                else:
+                    manga.type_of = type_of.lower().strip().split("\n")[-1]
+            
             rating = card.select_one("div.manga__info div.rating__count").children
             manga.rating = (
                 float(x) 
@@ -116,7 +117,7 @@ class Nartag(Scraper):
 
         except Exception as err:
             logger.exception(
-                f"NARTAG SERVER EXCEPTION IN get_info:\nFUNCTION CALL:\n\tget_info(\n\t\tserver_id:int = {server_id}\n\t\tname_url: str = '{name_url}'\n\t)\nHTML CARD: {card.prettify(encoding=None)}\nHTML CHAPTERS: {chapters.prettify(encoding=None)}\nEXCEPTION:\n{err}"
+                f"NARTAG SERVER EXCEPTION IN get_info:\nFUNCTION CALL:\n\tget_info(\n\t\tserver_id:int = {server_id}\n\t\tname_url: str = '{name_url}'\n\t)\nHTML CARD: {card.prettify(encoding=None) if card else None}\nHTML CHAPTERS: {chapters.prettify(encoding=None) if chapters else None}\nEXCEPTION:\n{err}"
             )
 
     @staticmethod
@@ -152,24 +153,37 @@ class Nartag(Scraper):
                 Nartag.__WORKING = False
                 break
 
-            for element in elements[:]:
+            for element in elements:
                 manga = await Nartag.get_info(server_id, element.name_url)
                 time.sleep(1)
 
-                if not manga and not force:
+                if not manga:
                     continue
-
+                    
+                manga = manga.model_dump()
+                if force:
+                    passing = False
+                    for value in manga.values():
+                        if value is None:
+                            passing = True
+                            break
+                    if passing:
+                        continue
+            
                 exist = (
                     db.query(Manga)
-                    .filter_by(name_url=manga.name_url)
+                    .filter(
+                        (Manga.name_url == manga["name_url"])
+                        &
+                        (Manga.server == manga["server"])
+                    )
                     .first()
                 )
+                
                 if exist:
                     continue
 
-                manga = manga.model_dump()
                 manga.pop("chapters_list")
-
                 mangas.append(Manga(**manga))
 
             db.bulk_save_objects(mangas)
@@ -188,12 +202,20 @@ class Nartag(Scraper):
             manga = await Nartag.get_info(server_id, element.name_url)
             time.sleep(1)
             
-            if not manga and not force:
+            if not manga:
                 db.query(Manga).filter_by(name_url=element.name_url).delete()
             else:
                 manga = manga.model_dump()
+                if force:
+                    passing = False
+                    for value in manga.values():
+                        if value is None:
+                            passing = True
+                            break
+                    if passing:
+                        continue
+                    
                 manga.pop("chapters_list")
-                
                 db.query(Manga).filter_by(name_url=element.name_url).update(manga)
 
             db.commit()

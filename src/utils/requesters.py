@@ -17,14 +17,18 @@ async def request(
         headers["User-Agent"] = FakeUserAgent().random
     
     async with ClientSession(headers=headers, cookies=cookies) as session:
-        async with session.get(url) as response:
-            if response.status != 200:
-                logger.error(
-                    f"REQUEST FAILED:\n\tSTATUS CODE: {response.status}\n\tURL: {url}\n\tRESPONSE: {response.content}"
-                )
-                return None
-            logger.info(f"REQUEST SUCCESS: {url}")
-            return "".join(await response.text())
+        try:
+            async with session.get(url) as response:
+                if response.status != 200:
+                    logger.error(
+                        f"REQUEST FAILED:\n\tSTATUS CODE: {response.status}\n\tURL: {url}\n\tRESPONSE: {response.content}"
+                    )
+                    return None
+                logger.info(f"REQUEST SUCCESS: {url}")
+                return "".join(await response.text())
+        except Exception as err:
+            logger.exception(f"REQUEST EXCEPTION:\n{err}")
+            return None
 
 
 from selenium.webdriver import Remote

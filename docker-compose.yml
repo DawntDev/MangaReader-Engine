@@ -1,7 +1,6 @@
 name: manga-reader
 services:
     server:
-        image: server
         build:
             context: .
             dockerfile: ./Dockerfile
@@ -12,7 +11,7 @@ services:
             - DB_PASSWORD=secret
             - DB_HOST=database:5432
             - DB_NAME=manga_reader
-            - SELENIUM_HOST=selenium-hub:4444/wd/hub
+            - SELENIUM_HOST=http://selenium-hub:4444/wd/hub
         ports:
             - "8000:8000"
         networks:
@@ -75,12 +74,7 @@ services:
         container_name: selenium-hub
         restart: unless-stopped
         environment:
-            - SE_NODE_MAX_SESSIONS=2
             - SE_NODE_SESSION_TIMEOUT=500
-        ports:
-            - "4442:4442"
-            - "4443:4443"
-            - "4444:4444"
         networks:
             - manga-reader
 

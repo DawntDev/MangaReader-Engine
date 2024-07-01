@@ -1,13 +1,20 @@
+from dataclasses import astuple
 from pydantic import BaseModel, field_validator
 from typing import Literal, Optional, List
 from enum import Enum
 import re
 
 
-class ServerSchema(BaseModel):
+class ServerAddSchema(BaseModel):
     name: str
     nsfw: bool
 
+class ServerGetSchema(BaseModel):
+    id: int
+    name: str
+    elements: int
+    nsfw: bool
+    in_working: bool = False
 
 class FetchLevel(int, Enum):
     UPDATE = 1
@@ -29,7 +36,7 @@ class MangaPreviewScheme(BaseModel):
 
 
 re_img = re.compile(
-    r"(http(s?):)([/|.|\w|\s|-])*\.(?:jpg|gif|png)",
+    r"(http(s?):)([/|.|\w|\s|\-|=])*\.(?:jpg|gif|png|webp)",
     flags=re.IGNORECASE,
 )
 

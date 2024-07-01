@@ -26,15 +26,15 @@ class LeerCapitulo(Scraper):
         page: str, 
         logger: LoggerT = None
     ) -> List[MangaPreviewScheme]:
-        sections = ("completed", "ongoing", "paused" , "cancelled")
         mangas: List[MangaPreviewScheme] = []
         
-        for section in sections:    
+        for section in LeerCapitulo.__sections:    
             response = await request(
                 f"{LeerCapitulo.__URL}/status/{section}/?page={page}"
             )
             time.sleep(0.25)
             if not response:
+                LeerCapitulo.__sections.remove(section)
                 continue
             
             soup = BeautifulSoup(response, "html.parser")
@@ -54,7 +54,7 @@ class LeerCapitulo(Scraper):
                     )
                 except Exception as err:
                     logger.exception(
-                        f"LEERCAPITULO SERVER EXCEPTION IN __get_list:\nFUNCTION CALL:\n\t__get_list(\n\t\tpage:str = '{page}'\n\t\tserver_id: int = {server_id}\n\t)\nHTML ITEM: {item.prettify(encoding=None)}\nEXCEPTION:\n{err}"
+                        f"LEERCAPITULO SERVER EXCEPTION IN __get_list:\nFUNCTION CALL:\n\t__get_list(\n\t\tpage:str = '{page}'\n\t\tserver_id: int = {server_id}\n\t)\nHTML ITEM: {item.prettify(encoding=None) if item else None}\nEXCEPTION:\n{err}"
                     )
         
         return mangas
@@ -77,7 +77,9 @@ class LeerCapitulo(Scraper):
         manga = MangaScheme(
             title=name_url.capitalize(),
             server=server_id,
-            name_url=name_url
+            name_url=name_url,
+            rating=0.0,
+            nsfw=False
         )
         
         try:
@@ -95,7 +97,11 @@ class LeerCapitulo(Scraper):
                     break
             
             genres = card.select("div.media-body p a")
-            manga.genres = [genre.text for genre in genres]
+            manga.genres = [
+                genre.text.strip().lower() 
+                for genre in genres 
+                if genre.text
+            ]
             
             overview = chapters.select_one("div.manga-content p").text
             manga.overview = overview.strip() if overview else None
@@ -114,7 +120,7 @@ class LeerCapitulo(Scraper):
             return manga
         except Exception as err:
             logger.exception(
-                f"NARTAG SERVER EXCEPTION IN get_info:\nFUNCTION CALL:\n\tget_info(\n\t\tserver_id:int = {server_id}\n\t\tname_url: str = '{name_url}'\n\t)\nHTML CARD: {card.prettify(encoding=None)}\nHTML CHAPTERS: {chapters.prettify(encoding=None)}\nEXCEPTION:\n{err}"
+                f"LEERCAPITULO SERVER EXCEPTION IN get_info:\nFUNCTION CALL:\n\tget_info(\n\t\tserver_id:int = {server_id}\n\t\tname_url: str = '{name_url}'\n\t)\nHTML CARD: {card.prettify(encoding=None) if card else None}\nHTML CHAPTERS: {chapters.prettify(encoding=None) if chapters else None}\nEXCEPTION:\n{err}"
             )
     
     @staticmethod
@@ -124,6 +130,7 @@ class LeerCapitulo(Scraper):
             f"{LeerCapitulo.__URL}/leer/{name_url}/{chapter_url}/",
             "#page_select"
         )
+        driver.quit()
 
         if not response:
             return
@@ -138,6 +145,7 @@ class LeerCapitulo(Scraper):
     async def scan(server_id: int, force: bool, db: Session):
         i = 1
         LeerCapitulo.__WORKING = True
+        LeerCapitulo.__sections = ["completed", "ongoing", "paused" , "cancelled"]
 
         while LeerCapitulo.__WORKING:
             elements = await LeerCapitulo.__get_list(server_id, i)
@@ -151,20 +159,33 @@ class LeerCapitulo(Scraper):
                 manga = await LeerCapitulo.get_info(server_id, element.name_url)
                 time.sleep(1)
 
-                if not manga and not force:
-                    continue
-
-                exist = (
-                    db.query(Manga)
-                    .filter_by(name_url=manga.name_url)
-                    .first()
-                )
-                if exist:
+                if not manga:
                     continue
 
                 manga = manga.model_dump()
-                manga.pop("chapters_list")
+                if force:
+                    passing = False
+                    for value in manga.values():
+                        if value is None:
+                            passing = True
+                            break
+                    if passing:
+                        continue
 
+                exist = (
+                    db.query(Manga)
+                    .filter(
+                        (Manga.name_url == manga["name_url"])
+                        &
+                        (Manga.server == manga["server"])
+                    )
+                    .first()
+                )
+
+                if exist:
+                    continue
+
+                manga.pop("chapters_list")
                 mangas.append(Manga(**manga))
 
             db.bulk_save_objects(mangas)
@@ -187,8 +208,16 @@ class LeerCapitulo(Scraper):
                 db.query(Manga).filter_by(name_url=element.name_url).delete()
             else:
                 manga = manga.model_dump()
+                if force:
+                    passing = False
+                    for value in manga.values():
+                        if value is None:
+                            passing = True
+                            break
+                    if passing:
+                        continue
+                    
                 manga.pop("chapters_list")
-                
                 db.query(Manga).filter_by(name_url=element.name_url).update(manga)
 
             db.commit()

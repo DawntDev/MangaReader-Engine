@@ -16,7 +16,7 @@ from src.utils.requesters import request
 
 
 class Ikigai(Scraper):
-    __URL = "https://es.ikigaiweb.lat"
+    __URL = "https://visualikigai.com"
     __WORKING = False
 
     @Logger(__name__, "ikigai")
@@ -118,7 +118,7 @@ class Ikigai(Scraper):
 
         except Exception as err:
             logger.exception(
-                f"IKIGAI SERVER EXCEPTION IN get_info:\nFUNCTION CALL:\n\tget_info(\n\t\tserver_id:int = {server_id}\n\t\tname_url: str = '{name_url}'\n\t)\nHTML CARD: {card.prettify(encoding=None)}\nHTML CHAPTERS: {chapters.prettify(encoding=None)}\nEXCEPTION:\n{err}"
+                f"IKIGAI SERVER EXCEPTION IN get_info:\nFUNCTION CALL:\n\tget_info(\n\t\tserver_id:int = {server_id}\n\t\tname_url: str = '{name_url}'\n\t)\nHTML CARD: {card.prettify(encoding=None) if card else None}\nHTML CHAPTERS: {chapters.prettify(encoding=None) if chapters else None}\nEXCEPTION:\n{err}"
             )
             return
 
@@ -137,9 +137,10 @@ class Ikigai(Scraper):
                 if str.isdigit(f"{pag.text}")
             ])
     
-            for pag in range(2, max_pagination):
+            for pag in range(2, max_pagination + 1):
                 response = await request(
-                    f"https://es.ikigaiweb.lat/series/{name_url}?pagina={pag}"
+                    f"{Ikigai.__URL}/series/{name_url}/?pagina={pag}",
+                    cookies={"data-saving": 0}
                 )
                 time.sleep(0.25)
                 soup = BeautifulSoup(response, "html.parser")
@@ -159,7 +160,7 @@ class Ikigai(Scraper):
 
         except Exception as err:
             logger.exception(
-                f"IKIGAI SERVER EXCEPTION IN get_info (EXTRACTING_CHAPTER_LIST_EXCEPTION):\nHTML CHAPTERS: {chapters.prettify(encoding=None)}\nPAG: {pag}\nEXCEPTION:\n{err}"
+                f"IKIGAI SERVER EXCEPTION IN get_info (EXTRACTING_CHAPTER_LIST_EXCEPTION):\nURL: {Ikigai.__URL}/series/{name_url}/?pagina={pag}\nPAG: {pag}\nEXCEPTION:\n{err}"
             )
             
             return
@@ -171,7 +172,7 @@ class Ikigai(Scraper):
         name_url: str, chapter_url: str
     ) -> Optional[List[str]]:
         response = await request(
-            f"https://es.ikigaiweb.lat/capitulo/{chapter_url}/",
+            f"{Ikigai.__URL}/capitulo/{chapter_url}/",
             cookies={"data-saving": 0, "nsfw-mode": 1},
         )
         if not response:
@@ -214,20 +215,33 @@ class Ikigai(Scraper):
                 )
                 time.sleep(1)
 
-                if not manga and not force:
-                    continue
-
-                exist = (
-                    db.query(Manga)
-                    .filter_by(name_url=manga.name_url)
-                    .first()
-                )
-                if exist:
+                if not manga:
                     continue
 
                 manga = manga.model_dump()
-                manga.pop("chapters_list")
+                if force:
+                    passing = False
+                    for value in manga.values():
+                        if value is None:
+                            passing = True
+                            break
+                    if passing:
+                        continue
 
+                exist = (
+                    db.query(Manga)
+                    .filter(
+                        (Manga.name_url == manga["name_url"])
+                        &
+                        (Manga.server == manga["server"])
+                    )
+                    .first()
+                )
+
+                if exist:
+                    continue
+
+                manga.pop("chapters_list")
                 mangas.append(Manga(**manga))
 
             db.bulk_save_objects(mangas)
@@ -247,16 +261,20 @@ class Ikigai(Scraper):
             time.sleep(1)
 
             if not manga and not force:
-                db.query(Manga).filter_by(
-                    name_url=element.name_url
-                ).delete()
+                db.query(Manga).filter_by(name_url=element.name_url).delete()
             else:
                 manga = manga.model_dump()
+                if force:
+                    passing = False
+                    for value in manga.values():
+                        if value is None:
+                            passing = True
+                            break
+                    if passing:
+                        continue
+                    
                 manga.pop("chapters_list")
-
-                db.query(Manga).filter_by(
-                    name_url=element.name_url
-                ).update(manga)
+                db.query(Manga).filter_by(name_url=element.name_url).update(manga)
 
             db.commit()
 
