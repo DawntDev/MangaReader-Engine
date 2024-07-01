@@ -1,0 +1,90 @@
+name: manga-reader
+services:
+    server:
+        image: server
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+        volumes:
+            - ./logs:/app/logs
+        environment:
+            - DB_USER=admin
+            - DB_PASSWORD=secret
+            - DB_HOST=database:5432
+            - DB_NAME=manga_reader
+            - SELENIUM_HOST=selenium-hub:4444/wd/hub
+        ports:
+            - "8000:8000"
+        networks:
+            - manga-reader
+
+    database:
+        image: postgres:latest
+        container_name: database
+        restart: unless-stopped
+        environment:
+            - POSTGRES_USER=admin
+            - POSTGRES_PASSWORD=secret
+            - POSTGRES_DB=manga_reader
+        volumes:
+            - ./db:/var/lib/postgresql/data
+        networks:
+            - manga-reader
+
+    edge-gluttony:
+        image: selenium/node-edge:latest
+        restart: unless-stopped
+        shm_size: 2gb
+        depends_on:
+            - selenium-hub
+        environment:
+            - SE_EVENT_BUS_HOST=selenium-hub
+            - SE_EVENT_BUS_PUBLISH_PORT=4442
+            - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+        networks:
+            - manga-reader
+
+    edge-argonaut:
+        image: selenium/node-edge:latest
+        restart: unless-stopped
+        shm_size: 2gb
+        depends_on:
+            - selenium-hub
+        environment:
+            - SE_EVENT_BUS_HOST=selenium-hub
+            - SE_EVENT_BUS_PUBLISH_PORT=4442
+            - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+        networks:
+            - manga-reader
+
+    edge-mayhem:
+        image: selenium/node-edge:latest
+        restart: unless-stopped
+        shm_size: 2gb
+        depends_on:
+            - selenium-hub
+        environment:
+            - SE_EVENT_BUS_HOST=selenium-hub
+            - SE_EVENT_BUS_PUBLISH_PORT=4442
+            - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+        networks:
+            - manga-reader
+
+    selenium-hub:
+        image: selenium/hub:latest
+        container_name: selenium-hub
+        restart: unless-stopped
+        environment:
+            - SE_NODE_MAX_SESSIONS=2
+            - SE_NODE_SESSION_TIMEOUT=500
+        ports:
+            - "4442:4442"
+            - "4443:4443"
+            - "4444:4444"
+        networks:
+            - manga-reader
+
+networks:
+  manga-reader:
+    name: manga-reader
+    driver: bridge
