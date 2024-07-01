@@ -2,6 +2,7 @@ from . import Base
 from sqlalchemy import (
     Column,
     Integer,
+    PrimaryKeyConstraint,
     String,
     Boolean,
     CheckConstraint,
@@ -20,13 +21,15 @@ class Server(Base):
 
 class Manga(Base):
     __tablename__ = "mangas"
+    __table_args__ = (PrimaryKeyConstraint("name_url", "server"),)
+    
     title = Column(String, nullable=False)
     type_of = Column(
         String,
         CheckConstraint(
             "type_of IN ('manga', 'manhwa', 'manhua', 'novel', 'one shot', 'doujinshi', 'oel')"
         ),
-        nullable=True
+        nullable=False
     )
     rating = Column(
         Numeric,
@@ -40,6 +43,6 @@ class Manga(Base):
         ForeignKey(Server.id),
         nullable=False
     )
-    name_url = Column(String, nullable=False, primary_key=True, unique=True)
+    name_url = Column(String, nullable=False)
     cover_url = Column(String, nullable=True)
     nsfw = Column(Boolean, nullable=False)

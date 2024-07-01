@@ -6,3 +6,5 @@ Scripts
 *.exe
 *.json
 *.cfg
+.env
+logs/

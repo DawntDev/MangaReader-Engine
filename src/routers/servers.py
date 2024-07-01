@@ -8,13 +8,14 @@ from fastapi import (
     BackgroundTasks
 )
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import List, Optional, Union
 
 from src.database import get_db
 from src.database.models import Server, Manga
 from src.database.schemas import (
     ServerFetchSchema,
-    ServerSchema,
+    ServerGetSchema,
+    ServerAddSchema,
     FetchLevel
 )
 from src.scrapers import SCRAPERS
@@ -27,9 +28,24 @@ def get_servers(
     id: Optional[int] = None,
     name: Optional[str] = None,
     db: Session = Depends(get_db)
-):
+) -> Union[List[ServerGetSchema], ServerGetSchema]:
     if not (id or name):
-        return db.query(Server).all()
+        query = db.query(Server).all()
+        servers = []
+        for element in query:
+            scraper = SCRAPERS.get(element.name)
+            if scraper:
+                elements = len(db.query(Manga).filter_by(server=element.id).all())
+                servers.append(
+                    ServerGetSchema(
+                        id=element.id,
+                        name=element.name,
+                        nsfw=element.nsfw, 
+                        in_working=scraper.in_working(),
+                        elements = elements
+                    )
+                )
+        return servers
 
     query = db.query(Server)
     query = (
@@ -43,12 +59,26 @@ def get_servers(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="The server not found"
         )
-
-    return query
+    
+    scraper = SCRAPERS.get(query.name)
+    if not scraper:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Scraper not found"
+        )
+        
+    elements = len(db.query(Manga).filter_by(server=query.id))
+    return ServerGetSchema(
+        id=query.id,
+        name=query.name,
+        elements=elements,
+        nsfw=query.nsfw, 
+        in_working=scraper.in_working()
+    )
 
 
 @servers_router.post("/")
-def add_server(request: ServerSchema, db: Session = Depends(get_db)):
+def add_server(request: ServerAddSchema, db: Session = Depends(get_db)):
     data = request.model_dump()
     exist = db.query(Server).filter_by(name=data["name"]).first()
 
