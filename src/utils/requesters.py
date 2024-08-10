@@ -27,7 +27,7 @@ async def request(
                 logger.info(f"REQUEST SUCCESS: {url}")
                 return "".join(await response.text())
         except Exception as err:
-            logger.exception(f"REQUEST EXCEPTION:\n{err}")
+            logger.exception(f"REQUEST EXCEPTION:\nURL:{url}\n{err}")
             return None
 
 

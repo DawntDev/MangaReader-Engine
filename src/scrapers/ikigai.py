@@ -16,7 +16,7 @@ from src.utils.requesters import request
 
 
 class Ikigai(Scraper):
-    __URL = "https://visualikigai.com"
+    __URL = "https://visorikigai.meope.com"
     __WORKING = False
 
     @Logger(__name__, "ikigai")
