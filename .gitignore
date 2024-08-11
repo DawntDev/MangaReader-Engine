@@ -8,3 +8,6 @@ Scripts
 *.cfg
 .env
 logs/
+db/
+share
+*test*.*

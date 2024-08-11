@@ -11,6 +11,7 @@ ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
 RUN python -m pip install --upgrade pip
 RUN python -m pip install -r requirements.txt
+RUN playwright install --with-deps
 
 WORKDIR /app
 COPY . /app

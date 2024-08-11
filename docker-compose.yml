@@ -4,6 +4,7 @@ services:
         build:
             context: .
             dockerfile: ./Dockerfile
+        restart: unless-stopped
         volumes:
             - ./logs:/app/logs
         environment:
@@ -11,7 +12,6 @@ services:
             - DB_PASSWORD=secret
             - DB_HOST=database:5432
             - DB_NAME=manga_reader
-            - SELENIUM_HOST=http://selenium-hub:4444/wd/hub
         ports:
             - "8000:8000"
         networks:
@@ -27,54 +27,6 @@ services:
             - POSTGRES_DB=manga_reader
         volumes:
             - ./db:/var/lib/postgresql/data
-        networks:
-            - manga-reader
-
-    edge-gluttony:
-        image: selenium/node-edge:latest
-        restart: unless-stopped
-        shm_size: 2gb
-        depends_on:
-            - selenium-hub
-        environment:
-            - SE_EVENT_BUS_HOST=selenium-hub
-            - SE_EVENT_BUS_PUBLISH_PORT=4442
-            - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-        networks:
-            - manga-reader
-
-    edge-argonaut:
-        image: selenium/node-edge:latest
-        restart: unless-stopped
-        shm_size: 2gb
-        depends_on:
-            - selenium-hub
-        environment:
-            - SE_EVENT_BUS_HOST=selenium-hub
-            - SE_EVENT_BUS_PUBLISH_PORT=4442
-            - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-        networks:
-            - manga-reader
-
-    edge-mayhem:
-        image: selenium/node-edge:latest
-        restart: unless-stopped
-        shm_size: 2gb
-        depends_on:
-            - selenium-hub
-        environment:
-            - SE_EVENT_BUS_HOST=selenium-hub
-            - SE_EVENT_BUS_PUBLISH_PORT=4442
-            - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
-        networks:
-            - manga-reader
-
-    selenium-hub:
-        image: selenium/hub:latest
-        container_name: selenium-hub
-        restart: unless-stopped
-        environment:
-            - SE_NODE_SESSION_TIMEOUT=500
         networks:
             - manga-reader
 

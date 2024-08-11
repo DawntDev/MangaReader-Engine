@@ -12,7 +12,7 @@ from src.database.schemas import (
     ChapterScheme
 )
 from src.utils import Logger
-from src.utils.requesters import request, WebDriver
+from src.utils.requesters import request, lazy_request
 
 
 class LeerCapitulo(Scraper):
@@ -125,12 +125,10 @@ class LeerCapitulo(Scraper):
     
     @staticmethod
     async def get_chapter(name_url: str, chapter_url: str) -> Optional[List[str]]:
-        driver = WebDriver()
-        response = driver.lazy_request(
+        response = await lazy_request(
             f"{LeerCapitulo.__URL}/leer/{name_url}/{chapter_url}/",
             "#page_select"
         )
-        driver.quit()
 
         if not response:
             return
